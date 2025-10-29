@@ -1,0 +1,4 @@
+.specstory/
+NotionTaskManager/.specstory/
+NotionTaskManager.xcodeproj/xcuserdata/
+*.xcuserstate

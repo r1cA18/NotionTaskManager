@@ -20,3 +20,19 @@ struct DateBoundaries {
 extension TimeZone {
     static let tokyo = TimeZone(identifier: "Asia/Tokyo")!
 }
+
+extension Date {
+    /// Returns the start of today in JST (Asia/Tokyo timezone)
+    static func todayInJST() -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .tokyo
+        return calendar.startOfDay(for: Date())
+    }
+
+    /// Returns the start of this date in JST (Asia/Tokyo timezone)
+    func startOfDayInJST() -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .tokyo
+        return calendar.startOfDay(for: self)
+    }
+}

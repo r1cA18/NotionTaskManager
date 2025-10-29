@@ -99,22 +99,7 @@ final class TodayDashboardViewModel: ObservableObject {
     return Self.timeslotOrder.compactMap { slot in
       guard let tasks = grouped[slot], !tasks.isEmpty else { return nil }
       let title = slot?.rawValue ?? "Unscheduled"
-      return (slot, title, tint(for: slot), tasks)
-    }
-  }
-
-  private func tint(for timeslot: TaskTimeslot?) -> Color {
-    switch timeslot {
-    case .morning:
-      return Color(red: 250 / 255, green: 224 / 255, blue: 94 / 255, opacity: 0.25)
-    case .forenoon:
-      return Color(red: 96 / 255, green: 165 / 255, blue: 250 / 255, opacity: 0.18)
-    case .afternoon:
-      return Color(red: 129 / 255, green: 199 / 255, blue: 132 / 255, opacity: 0.18)
-    case .evening:
-      return Color(red: 244 / 255, green: 114 / 255, blue: 182 / 255, opacity: 0.18)
-    case .none:
-      return Color(.secondarySystemBackground)
+      return (slot, title, TaskPalette.tint(for: slot), tasks)
     }
   }
 
@@ -159,43 +144,5 @@ final class TodayDashboardViewModel: ObservableObject {
     }
 
     await refresh(for: date, mode: .cacheOnly)
-  }
-}
-
-struct TaskDisplayModel: Identifiable {
-  let task: TaskEntity
-
-  var id: String { task.notionID }
-  var title: String { task.name }
-  var status: TaskStatus { task.status }
-  var timestamp: Date? { task.timestamp }
-  var timeslot: TaskTimeslot? { task.timeslot }
-  var priority: TaskPriority? { task.priority }
-  var type: TaskType? { task.type }
-  var memo: String? { task.memo }
-  var endTime: Date? { task.endTime }
-  var startTime: Date? { task.startTime }
-  var deadline: Date? { task.deadline }
-  var bookmarkURL: URL? { task.bookmarkURL }
-  var url: URL? { bookmarkURL ?? task.url }
-
-  var timeslotLabel: String {
-    timeslot?.rawValue ?? "Unscheduled"
-  }
-
-  var bookmarkLabel: String? {
-    guard let url else { return nil }
-    if let host = url.host, !host.isEmpty {
-      return host
-    }
-    return url.absoluteString
-  }
-
-  var resolvedType: TaskType {
-    task.type ?? .nextAction
-  }
-
-  init(task: TaskEntity) {
-    self.task = task
   }
 }

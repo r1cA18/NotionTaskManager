@@ -118,7 +118,7 @@ extension TaskEntity {
       }
     }
     var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+    calendar.timeZone = .tokyo
     let today = calendar.startOfDay(for: Date())
     return timestamp < today
   }

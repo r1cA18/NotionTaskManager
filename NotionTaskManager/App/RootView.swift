@@ -29,7 +29,6 @@ struct RootView: View {
                         .progressViewStyle(.circular)
                 }
             }
-            .navigationTitle("Tasks")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink("Settings") {

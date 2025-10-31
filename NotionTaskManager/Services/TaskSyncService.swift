@@ -23,7 +23,17 @@ final class TaskSyncService: ObservableObject {
     self.mapper = mapper
   }
 
+  /// Refreshes tasks for the given date, including Inbox and Overdue tasks
   func refresh(for date: Date) async {
+    await performSync(for: date, includeInboxAndOverdue: true)
+  }
+
+  /// Refreshes only tasks for the specific date (excludes Inbox and Overdue)
+  func refreshDateOnly(for date: Date) async {
+    await performSync(for: date, includeInboxAndOverdue: false)
+  }
+
+  private func performSync(for date: Date, includeInboxAndOverdue: Bool) async {
     if isSyncing {
       while isSyncing {
         if Task.isCancelled { return }
@@ -40,13 +50,16 @@ final class TaskSyncService: ObservableObject {
     defer { isSyncing = false }
 
     let dayString = Self.dayFormatter.string(from: date)
-    log("[TaskSyncService] 🔍 Fetching tasks for date: \(dayString)")
+    let scope = includeInboxAndOverdue ? "full (date + inbox + overdue)" : "date only"
+    log("[TaskSyncService] 🔍 Fetching tasks for date: \(dayString) [\(scope)]")
 
     do {
       var cursor: String?
       var snapshots: [TaskSnapshot] = []
 
-      let filter = TaskScopeMatcher.combinedDailyFilter(dayString: dayString)
+      let filter = includeInboxAndOverdue
+        ? TaskScopeMatcher.combinedDailyFilter(dayString: dayString)
+        : TaskScopeMatcher.dateOnlyFilter(dayString: dayString)
 
       repeat {
         let request = NotionDatabaseQueryRequest(filter: filter, pageSize: 100, startCursor: cursor)
@@ -102,15 +115,29 @@ final class TaskSyncService: ObservableObject {
 
       try repository.upsert(snapshots: snapshots)
       let ids = Set(snapshots.map(\.notionID))
-      try repository.pruneTasks(
-        matching: { entity in
-          entity.isInboxCandidate
-            || entity.isOverdueCandidate
-            || self.isSameDay(entity.timestamp, comparedTo: date)
-            || self.isSameDay(entity.startTime, comparedTo: date)
-            || self.isSameDay(entity.endTime, comparedTo: date)
-        },
-        keepingIDs: ids)
+
+      // Prune strategy differs based on scope
+      if includeInboxAndOverdue {
+        try repository.pruneTasks(
+          matching: { entity in
+            entity.isInboxCandidate
+              || entity.isOverdueCandidate
+              || self.isSameDay(entity.timestamp, comparedTo: date)
+              || self.isSameDay(entity.startTime, comparedTo: date)
+              || self.isSameDay(entity.endTime, comparedTo: date)
+          },
+          keepingIDs: ids)
+      } else {
+        // Only prune tasks for the specific date
+        try repository.pruneTasks(
+          matching: { entity in
+            self.isSameDay(entity.timestamp, comparedTo: date)
+              || self.isSameDay(entity.startTime, comparedTo: date)
+              || self.isSameDay(entity.endTime, comparedTo: date)
+          },
+          keepingIDs: ids)
+      }
+
       lastError = nil
     } catch is CancellationError {
       lastError = nil

@@ -56,22 +56,22 @@ final class DateNavigationViewModel: ObservableObject {
         }
     }
 
-    /// Selects a new date and loads tasks (cache-first, then refresh)
+    /// Selects a new date and loads tasks (cache-first, then refresh date only)
     func selectDate(_ date: Date) async {
         selectedDate = date
 
         // Load from cache immediately (< 300ms)
         await loadFromCache()
 
-        // Refresh from Notion in background
+        // Refresh only the selected date from Notion (excludes Inbox/Overdue)
         guard let syncService else { return }
-        await syncService.refresh(for: date)
+        await syncService.refreshDateOnly(for: date)
 
         // Update with fresh data after refresh completes
         await loadFromCache()
     }
 
-    /// Manually refresh tasks for the selected date
+    /// Manually refresh all tasks for the selected date (including Inbox and Overdue)
     func refreshTasks() async {
         guard !isLoading else { return }
         isLoading = true

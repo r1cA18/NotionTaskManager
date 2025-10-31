@@ -31,8 +31,15 @@ struct DateHeaderView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
-            .background(Color(.systemBackground))
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemGroupedBackground))
+                    .shadow(color: Color.black.opacity(0.15), radius: 8, x: 4, y: 4)
+                    .shadow(color: Color.white.opacity(0.7), radius: 8, x: -4, y: -4)
+            )
+            .padding(.horizontal, 16)
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("日付を選択: \(formattedDate)")
     }
 }

@@ -16,30 +16,48 @@ struct DateSelectorView: View {
     }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(dateRange.dates, id: \.self) { date in
-                    DateCell(
-                        date: date,
-                        isSelected: isSameDay(date, selectedDate)
-                    )
-                    .onTapGesture {
-                        selectedDate = date
-                        scrollPosition = date
-                        onDateChanged(date)
+        GeometryReader { geometry in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    // 左端のパディング（画面幅の半分 - セル幅の半分）
+                    Spacer()
+                        .frame(width: (geometry.size.width - 48) / 2)
+
+                    ForEach(dateRange.dates, id: \.self) { date in
+                        DateCell(
+                            date: date,
+                            isSelected: isSameDay(date, selectedDate)
+                        )
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3)) {
+                                selectedDate = date
+                                scrollPosition = date
+                            }
+                            onDateChanged(date)
+                        }
                     }
+
+                    // 右端のパディング（画面幅の半分 - セル幅の半分）
+                    Spacer()
+                        .frame(width: (geometry.size.width - 48) / 2)
                 }
+                .scrollTargetLayout()
             }
-            .padding(.horizontal, 20)
-            .scrollTargetLayout()
+            .scrollPosition(id: $scrollPosition, anchor: .center)
+            .scrollTargetBehavior(.viewAligned)
         }
-        .scrollPosition(id: $scrollPosition, anchor: .center)
-        .scrollTargetBehavior(.viewAligned)
         .frame(height: 80)
         .onChange(of: scrollPosition) { oldValue, newValue in
             if let newValue, !isSameDay(newValue, selectedDate) {
                 selectedDate = newValue
                 onDateChanged(newValue)
+            }
+        }
+        .onChange(of: selectedDate) { oldValue, newValue in
+            if !isSameDay(oldValue, newValue) {
+                withAnimation(.spring(response: 0.3)) {
+                    scrollPosition = newValue.startOfDayInJST()
+                }
             }
         }
         .onAppear {
@@ -54,7 +72,7 @@ struct DateSelectorView: View {
     }
 }
 
-/// Individual date cell in the horizontal selector
+/// Individual date cell in the horizontal selector (circular design)
 struct DateCell: View {
     let date: Date
     let isSelected: Bool
@@ -81,24 +99,36 @@ struct DateCell: View {
     }
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             Text(weekdayFormatter.string(from: date))
-                .font(.caption2)
+                .font(.system(size: 9, weight: .medium))
                 .foregroundStyle(isSelected ? .white : .secondary)
 
             Text(dayFormatter.string(from: date))
-                .font(.title3)
-                .fontWeight(isSelected ? .bold : .regular)
+                .font(.system(size: 16, weight: isSelected ? .bold : .regular))
                 .foregroundStyle(isSelected ? .white : .primary)
         }
-        .frame(width: 56, height: 64)
+        .frame(width: 48, height: 48)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? Color.accentColor : (isToday ? Color.accentColor.opacity(0.1) : Color(.secondarySystemBackground)))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isToday && !isSelected ? Color.accentColor : Color.clear, lineWidth: 1.5)
+            ZStack {
+                if isSelected {
+                    Circle()
+                        .fill(Color.accentColor)
+                } else if isToday {
+                    Circle()
+                        .fill(Color.accentColor.opacity(0.1))
+                        .overlay(
+                            Circle()
+                                .stroke(Color.accentColor, lineWidth: 2)
+                        )
+                } else {
+                    // Neumorphism effect
+                    Circle()
+                        .fill(Color(.systemGroupedBackground))
+                        .shadow(color: Color.black.opacity(0.2), radius: 3, x: 2, y: 2)
+                        .shadow(color: Color.white.opacity(0.7), radius: 3, x: -2, y: -2)
+                }
+            }
         )
     }
 }

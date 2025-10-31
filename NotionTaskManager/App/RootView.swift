@@ -23,13 +23,13 @@ struct RootView: View {
                     }
                     .padding()
                 } else if let repository, let syncService {
-                    TodayDashboardView(repository: repository, syncService: syncService)
+                    DateNavigationView(repository: repository, syncService: syncService)
                 } else {
                     ProgressView()
                         .progressViewStyle(.circular)
                 }
             }
-            .navigationTitle("Today")
+            .navigationTitle("Tasks")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink("Settings") {

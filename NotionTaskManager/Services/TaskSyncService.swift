@@ -52,28 +52,50 @@ final class TaskSyncService: ObservableObject {
         let request = NotionDatabaseQueryRequest(filter: filter, pageSize: 100, startCursor: cursor)
         let response = try await client.queryDatabase(credentials: credentials, request: request)
         var mapped = response.results.compactMap(mapper.snapshot(from:))
-        for index in mapped.indices {
-          guard mapped[index].bookmarkURL == nil else { continue }
-          do {
-            log(
-              "[NotionSync] 🔍 Fetching bookmark for page: \(mapped[index].notionID) (\(mapped[index].name))"
-            )
-            if let bookmark = try await client.firstBookmarkURL(
-              credentials: credentials, pageID: mapped[index].notionID)
-            {
-              log("[NotionSync] ✅ Found bookmark: \(bookmark.absoluteString)")
-              mapped[index].bookmarkURL = bookmark
-            } else {
-              log("[NotionSync] ℹ️ No bookmark found for page: \(mapped[index].name)")
+
+        // Parallel bookmark fetching with max 5 concurrent requests
+        let tasksNeedingBookmarks = mapped.enumerated().filter { $0.element.bookmarkURL == nil }
+        let batchSize = 5
+
+        for batchStart in stride(from: 0, to: tasksNeedingBookmarks.count, by: batchSize) {
+          let batchEnd = min(batchStart + batchSize, tasksNeedingBookmarks.count)
+          let batch = Array(tasksNeedingBookmarks[batchStart..<batchEnd])
+
+          await withTaskGroup(of: (Int, URL?).self) { group in
+            for (index, snapshot) in batch {
+              group.addTask {
+                do {
+                  self.log(
+                    "[NotionSync] 🔍 Fetching bookmark for page: \(snapshot.notionID) (\(snapshot.name))"
+                  )
+                  if let bookmark = try await self.client.firstBookmarkURL(
+                    credentials: credentials, pageID: snapshot.notionID)
+                  {
+                    self.log("[NotionSync] ✅ Found bookmark: \(bookmark.absoluteString)")
+                    return (index, bookmark)
+                  } else {
+                    self.log("[NotionSync] ℹ️ No bookmark found for page: \(snapshot.name)")
+                    return (index, nil)
+                  }
+                } catch {
+                  if let urlError = error as? URLError, urlError.code == .cancelled {
+                    self.log("[NotionSync] ⏩ Bookmark fetch cancelled for \(snapshot.notionID)")
+                  } else {
+                    self.log("[NotionSync] ⚠️ Bookmark fetch failed for \(snapshot.notionID): \(error)")
+                  }
+                  return (index, nil)
+                }
+              }
             }
-          } catch {
-            if let urlError = error as? URLError, urlError.code == .cancelled {
-              log("[NotionSync] ⏩ Bookmark fetch cancelled for \(mapped[index].notionID)")
-            } else {
-              log("[NotionSync] ⚠️ Bookmark fetch failed for \(mapped[index].notionID): \(error)")
+
+            for await (index, url) in group {
+              if let url {
+                mapped[index].bookmarkURL = url
+              }
             }
           }
         }
+
         snapshots.append(contentsOf: mapped)
         cursor = response.hasMore ? response.nextCursor : nil
       } while cursor != nil

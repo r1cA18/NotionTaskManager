@@ -177,7 +177,7 @@ final class OverdueCarouselViewModel: ObservableObject {
 
   private static func todayInTokyo() -> Date {
     var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+    calendar.timeZone = .tokyo
     return calendar.startOfDay(for: Date())
   }
 }

@@ -67,6 +67,15 @@ enum TaskScopeMatcher {
     ])
   }
 
+  /// Filter for fetching only tasks on a specific date (excludes Inbox and Overdue)
+  static func dateOnlyFilter(dayString: String) -> JSONValue {
+    guard let today = notionFilter(for: .todayTodo, dayString: dayString) else {
+      // Fallback to empty filter if somehow nil
+      return JSONValue.object(["property": .string("Timestamp"), "date": .object(["equals": .string(dayString)])])
+    }
+    return today
+  }
+
   private static func overdueFilters(dayString: String) -> [JSONValue] {
     let timestampNotEmpty = JSONValue.object([
       "property": .string("Timestamp"),

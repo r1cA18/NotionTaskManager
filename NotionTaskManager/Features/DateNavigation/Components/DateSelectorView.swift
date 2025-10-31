@@ -60,8 +60,11 @@ struct DateSelectorView: View {
                 }
             }
         }
-        .onAppear {
-            scrollPosition = selectedDate.startOfDayInJST()
+        .task {
+            // Ensure scroll position is set on first appearance without animation
+            if scrollPosition == nil {
+                scrollPosition = selectedDate.startOfDayInJST()
+            }
         }
     }
 

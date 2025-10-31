@@ -38,6 +38,7 @@ struct DateHeaderView: View {
                     .shadow(color: Color.white.opacity(0.7), radius: 8, x: -4, y: -4)
             )
             .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("日付を選択: \(formattedDate)")

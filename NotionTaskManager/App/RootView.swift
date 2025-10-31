@@ -31,8 +31,11 @@ struct RootView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink("Settings") {
+                    NavigationLink {
                         SettingsView()
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.title3)
                     }
                 }
             }

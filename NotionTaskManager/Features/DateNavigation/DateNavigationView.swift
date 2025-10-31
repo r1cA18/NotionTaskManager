@@ -47,7 +47,7 @@ struct DateNavigationView: View {
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 20)
-            .padding(.top, 16)
+            .padding(.top, 8)
 
             // Task List
             TabView(selection: $activeTab) {

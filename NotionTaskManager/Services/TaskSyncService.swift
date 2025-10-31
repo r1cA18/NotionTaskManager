@@ -678,7 +678,7 @@ final class TaskSyncService: ObservableObject {
     return lhs == rhs
   }
 
-  private func log(_ message: String) {
+  private nonisolated func log(_ message: String) {
     #if DEBUG
       print(message)
     #endif

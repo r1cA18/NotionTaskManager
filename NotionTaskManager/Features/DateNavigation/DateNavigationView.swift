@@ -39,24 +39,34 @@ struct DateNavigationView: View {
                 }
             )
 
-            // Todo/Completed Tabs
-            Picker("表示", selection: $activeTab) {
-                ForEach(TaskTab.allCases) { tab in
-                    Text(tab.title).tag(tab)
+            // Main View with Neumorphism
+            VStack(spacing: 0) {
+                // Todo/Completed Tabs
+                Picker("表示", selection: $activeTab) {
+                    ForEach(TaskTab.allCases) { tab in
+                        Text(tab.title).tag(tab)
+                    }
                 }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
 
-            // Task List
-            TabView(selection: $activeTab) {
-                todoPage
-                    .tag(TaskTab.todo)
-                completedPage
-                    .tag(TaskTab.completed)
+                // Task List
+                TabView(selection: $activeTab) {
+                    todoPage
+                        .tag(TaskTab.todo)
+                    completedPage
+                        .tag(TaskTab.completed)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: -4)
+                    .shadow(color: Color.white.opacity(0.5), radius: 8, x: 0, y: 4)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 24))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(.systemGroupedBackground))

@@ -46,7 +46,8 @@ struct DateSelectorView: View {
             .scrollPosition(id: $scrollPosition, anchor: .center)
             .scrollTargetBehavior(.viewAligned)
         }
-        .frame(height: 80)
+        .frame(height: 100)
+        .padding(.vertical, 8)
         .onChange(of: scrollPosition) { oldValue, newValue in
             if let newValue, !isSameDay(newValue, selectedDate) {
                 selectedDate = newValue

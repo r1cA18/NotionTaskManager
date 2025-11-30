@@ -5,18 +5,18 @@ struct EmptyLabel: View {
     var icon: String = "tray"
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 32))
+                .font(.system(size: 36, weight: .light))
                 .foregroundStyle(.tertiary)
             
             Text(text)
-                .font(.subheadline)
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
+        .padding(.vertical, 32)
     }
 }
 

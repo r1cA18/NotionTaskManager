@@ -10,23 +10,21 @@ struct SectionContainer<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Section header
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(title)
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(foreground)
                 
                 Spacer()
                 
                 Text(subtitle)
-                    .font(.caption)
-                    .fontWeight(.medium)
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
                     .background(
                         Capsule()
-                            .fill(Color(.systemFill))
+                            .fill(Color(.systemFill).opacity(0.6))
                     )
             }
             
@@ -35,43 +33,39 @@ struct SectionContainer<Content: View>: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(tint)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(tint.opacity(0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(foreground.opacity(0.1), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(foreground.opacity(0.1), lineWidth: 0.5)
         )
     }
 }
 
 #Preview {
-    VStack(spacing: 16) {
-        SectionContainer(
-            title: "今日のタスク",
-            subtitle: "3 tasks",
-            tint: TaskPalette.todoBackground,
-            foreground: TaskPalette.todoForeground
-        ) {
-            VStack(spacing: 8) {
-                Text("Task 1")
-                Text("Task 2")
-                Text("Task 3")
-            }
-        }
+    ZStack {
+        Color(.systemGroupedBackground)
+            .ignoresSafeArea()
         
-        SectionContainer(
-            title: "完了",
-            subtitle: "2 done",
-            tint: TaskPalette.completedBackground,
-            foreground: TaskPalette.completedForeground
-        ) {
-            VStack(spacing: 8) {
-                Text("Completed Task 1")
-                Text("Completed Task 2")
+        VStack(spacing: 16) {
+            SectionContainer(
+                title: "今日のタスク",
+                subtitle: "3 tasks",
+                tint: TaskPalette.todoBackground,
+                foreground: TaskPalette.todoForeground
+            ) {
+                VStack(spacing: 8) {
+                    Text("Task 1")
+                    Text("Task 2")
+                    Text("Task 3")
+                }
             }
         }
+        .padding()
     }
-    .padding()
-    .background(Color(.systemGroupedBackground))
 }

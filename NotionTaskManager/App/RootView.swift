@@ -40,7 +40,7 @@ struct RootView: View {
             // App icon placeholder
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.accent)
+                .foregroundStyle(Color.accentColor)
             
             VStack(spacing: 8) {
                 Text("Notion Task Manager")

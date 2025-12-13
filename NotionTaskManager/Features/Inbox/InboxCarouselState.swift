@@ -143,6 +143,26 @@ final class InboxCarouselViewModel: ObservableObject {
     reloadQueueFromCache()
   }
 
+  func convertToNextAction(priority: TaskPriority, timeslot: TaskTimeslot) async {
+    var changes = TaskEditChanges()
+    changes.priority = .set(priority)
+    changes.timeslot = .set(timeslot)
+    let today = Self.todayInTokyo()
+    if let timestamp = currentTask?.timestamp {
+      if timestamp < today {
+        changes.timestamp = .set(today)
+      }
+    } else {
+      changes.timestamp = .set(today)
+    }
+    await applyEdits(changes)
+    if lastError == nil {
+      guard let task = currentTask else { return }
+      await syncService.convertToNextAction(taskID: task.id)
+      reloadQueueFromCache()
+    }
+  }
+
   func trashCurrent() async {
     guard let task = currentTask else { return }
     await syncService.trashTask(taskID: task.id)

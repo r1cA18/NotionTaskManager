@@ -9,10 +9,16 @@ struct InboxCarouselView: View {
     @State private var pendingMandatoryTaskID: String?
     @State private var pendingMandatoryPriority: TaskPriority?
     @State private var pendingMandatoryTimeslot: TaskTimeslot?
+    @State private var pendingAction: PendingAction = .triage
     @State private var showingSyncError = false
     @State private var syncErrorMessage = ""
     @State private var pendingErrorMessage: String?
     @GestureState private var horizontalOffset: CGFloat = 0
+
+    private enum PendingAction {
+        case triage
+        case nextAction
+    }
     
     init(viewModel: InboxCarouselViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -89,9 +95,17 @@ struct InboxCarouselView: View {
             ) { priority, timeslot in
                 showingMandatorySheet = false
                 let pendingID = pendingMandatoryTaskID
+                let action = pendingAction
                 resetMandatoryState()
                 guard let currentID = viewModel.currentTask?.id, currentID == pendingID else { return }
-                Task { await viewModel.assignCurrent(priority: priority, timeslot: timeslot) }
+                Task {
+                    switch action {
+                    case .triage:
+                        await viewModel.assignCurrent(priority: priority, timeslot: timeslot)
+                    case .nextAction:
+                        await viewModel.convertToNextAction(priority: priority, timeslot: timeslot)
+                    }
+                }
             } onCancel: {
                 showingMandatorySheet = false
                 resetMandatoryState()
@@ -251,7 +265,7 @@ struct InboxCarouselView: View {
                 if translation > 120 {
                     handleTriageSwipe()
                 } else if translation < -120 {
-                    Task { await viewModel.convertToNextAction() }
+                    handleNextActionSwipe()
                 }
             }
     }
@@ -273,9 +287,23 @@ struct InboxCarouselView: View {
             pendingMandatoryTaskID = task.id
             pendingMandatoryPriority = task.priority
             pendingMandatoryTimeslot = task.timeslot
+            pendingAction = .triage
             showingMandatorySheet = true
         } else {
             Task { await viewModel.assignCurrent() }
+        }
+    }
+
+    private func handleNextActionSwipe() {
+        if let task = viewModel.currentTask,
+           task.priority == nil || task.timeslot == nil {
+            pendingMandatoryTaskID = task.id
+            pendingMandatoryPriority = task.priority
+            pendingMandatoryTimeslot = task.timeslot
+            pendingAction = .nextAction
+            showingMandatorySheet = true
+        } else {
+            Task { await viewModel.convertToNextAction() }
         }
     }
     
@@ -312,6 +340,7 @@ struct InboxCarouselView: View {
         pendingMandatoryTaskID = nil
         pendingMandatoryPriority = nil
         pendingMandatoryTimeslot = nil
+        pendingAction = .triage
     }
 }
 

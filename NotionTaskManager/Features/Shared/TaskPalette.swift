@@ -1,23 +1,85 @@
 import SwiftUI
 
 enum TaskPalette {
-    static let todoBackground = Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255, opacity: 0.08)
-    static let todoForeground = Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
-    static let completedBackground = Color(red: 34 / 255, green: 197 / 255, blue: 94 / 255, opacity: 0.08)
-    static let completedForeground = Color(red: 34 / 255, green: 197 / 255, blue: 94 / 255)
-
+    // MARK: - Legacy Colors (for compatibility)
+    static let todoBackground = Color.blue.opacity(0.08)
+    static let todoForeground = Color.blue
+    static let completedBackground = Color.green.opacity(0.08)
+    static let completedForeground = Color.green
+    
+    // MARK: - Liquid Glass Colors
+    
     static func tint(for timeslot: TaskTimeslot?) -> Color {
         switch timeslot {
         case .morning:
-            return Color(red: 250 / 255, green: 224 / 255, blue: 94 / 255, opacity: 0.25)
+            return Color.orange.opacity(0.2)
         case .forenoon:
-            return Color(red: 96 / 255, green: 165 / 255, blue: 250 / 255, opacity: 0.18)
+            return Color.yellow.opacity(0.2)
         case .afternoon:
-            return Color(red: 129 / 255, green: 199 / 255, blue: 132 / 255, opacity: 0.18)
+            return Color.blue.opacity(0.2)
         case .evening:
-            return Color(red: 244 / 255, green: 114 / 255, blue: 182 / 255, opacity: 0.18)
+            return Color.purple.opacity(0.2)
         case .none:
-            return Color(.secondarySystemBackground)
+            return Color.gray.opacity(0.15)
         }
+    }
+    
+    static func accentColor(for timeslot: TaskTimeslot?) -> Color {
+        switch timeslot {
+        case .morning: return .orange
+        case .forenoon: return .yellow
+        case .afternoon: return .blue
+        case .evening: return .purple
+        case .none: return .gray
+        }
+    }
+    
+    static func gradient(for timeslot: TaskTimeslot?) -> LinearGradient {
+        let color = accentColor(for: timeslot)
+        return LinearGradient(
+            colors: [color.opacity(0.2), color.opacity(0.05)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    // MARK: - Priority Colors
+    
+    static func priorityColor(_ priority: TaskPriority?) -> Color {
+        switch priority {
+        case .fourStars: return .red
+        case .threeAndHalf: return .orange
+        case .twoStars: return .yellow
+        case .oneStar: return .green
+        case .none: return .gray
+        }
+    }
+    
+    static func priorityGradient(_ priority: TaskPriority?) -> LinearGradient {
+        let color = priorityColor(priority)
+        return LinearGradient(
+            colors: [color, color.opacity(0.7)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    // MARK: - Status Colors
+    
+    static func statusColor(_ status: TaskStatus) -> Color {
+        switch status {
+        case .toDo: return .blue
+        case .inProgress: return .orange
+        case .complete: return .green
+        }
+    }
+    
+    static func statusGradient(_ status: TaskStatus) -> LinearGradient {
+        let color = statusColor(status)
+        return LinearGradient(
+            colors: [color, color.opacity(0.7)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 }

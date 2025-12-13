@@ -3,51 +3,117 @@ import SwiftUI
 struct CompletedCard: View {
     let model: TaskDisplayModel
     let onTap: () -> Void
-    let tint: Color = TaskPalette.completedForeground
-
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(model.title)
-                .font(.body)
-                .foregroundStyle(.primary)
-            if let memo = memoText {
-                Text(memo)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-            }
-            if let url = model.url, let label = model.bookmarkLabel {
-                Link(destination: url) {
-                    Label(label, systemImage: "link")
-                        .font(.caption)
-                        .foregroundStyle(Color.accentColor)
+        Button(action: onTap) {
+            HStack(spacing: 14) {
+                // Checkmark circle
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.green, Color.green.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 32, height: 32)
+                    
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
                 }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("関連リンクを開く")
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(model.title)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .strikethrough(true, color: .secondary.opacity(0.5))
+                        .lineLimit(1)
+                    
+                    HStack(spacing: 10) {
+                        if let endTime = model.endTime {
+                            Label {
+                                Text(endTime.formatted(date: .omitted, time: .shortened))
+                            } icon: {
+                                Image(systemName: "clock.badge.checkmark")
+                            }
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        }
+                        
+                        if let url = model.url, let label = model.bookmarkLabel {
+                            Link(destination: url) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "link")
+                                    Text(label)
+                                        .lineLimit(1)
+                                }
+                                .font(.system(size: 11))
+                                .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
-            if let endTime = model.endTime {
-                Label(
-                    endTime.formatted(date: .omitted, time: .shortened), systemImage: "checkmark.seal.fill"
-                )
-                .labelStyle(.titleAndIcon)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.green.opacity(0.15), lineWidth: 0.5)
+            )
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(tint.opacity(0.6), lineWidth: 1.2)
-        )
-        .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
-        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .onTapGesture(perform: onTap)
+        .buttonStyle(CardButtonStyle())
     }
+}
 
-    private var memoText: String? {
-        let trimmed = model.memo?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return trimmed.isEmpty ? nil : trimmed
+#Preview {
+    ZStack {
+        Color(.systemGroupedBackground)
+            .ignoresSafeArea()
+        
+        VStack(spacing: 12) {
+            CompletedCard(
+                model: TaskDisplayModel(task: TaskEntity(
+                    notionID: "1",
+                    name: "メール確認完了",
+                    status: .complete,
+                    timestamp: Date(),
+                    timeslot: .morning,
+                    endTime: Date(),
+                    priority: .twoStars,
+                    updatedAt: Date(),
+                    createdAt: Date()
+                )),
+                onTap: {}
+            )
+            
+            CompletedCard(
+                model: TaskDisplayModel(task: TaskEntity(
+                    notionID: "2",
+                    name: "レポート作成",
+                    status: .complete,
+                    timestamp: Date(),
+                    timeslot: .afternoon,
+                    endTime: Date().addingTimeInterval(-3600),
+                    priority: .fourStars,
+                    updatedAt: Date(),
+                    createdAt: Date()
+                )),
+                onTap: {}
+            )
+        }
+        .padding()
     }
 }

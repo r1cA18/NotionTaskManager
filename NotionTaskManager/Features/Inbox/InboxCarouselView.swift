@@ -4,22 +4,41 @@ import SwiftUI
 struct InboxCarouselView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: InboxCarouselViewModel
+    @GestureState private var horizontalOffset: CGFloat = 0
+
+    // MARK: - Sheet State
     @State private var showingEditor = false
     @State private var showingMandatorySheet = false
-    @State private var pendingMandatoryTaskID: String?
-    @State private var pendingMandatoryPriority: TaskPriority?
-    @State private var pendingMandatoryTimeslot: TaskTimeslot?
-    @State private var pendingAction: PendingAction = .triage
     @State private var showingSyncError = false
     @State private var syncErrorMessage = ""
     @State private var pendingErrorMessage: String?
-    @GestureState private var horizontalOffset: CGFloat = 0
 
-    private enum PendingAction {
+    // MARK: - Pending Action State
+    @State private var pendingSwipeAction: SwipeAction?
+
+    private enum SwipeAction {
         case triage
         case nextAction
+
+        var completionHandler: (InboxCarouselViewModel, TaskPriority, TaskTimeslot) async -> Void {
+            switch self {
+            case .triage:
+                return { vm, p, t in await vm.assignCurrent(priority: p, timeslot: t) }
+            case .nextAction:
+                return { vm, p, t in await vm.convertToNextAction(priority: p, timeslot: t) }
+            }
+        }
+
+        var immediateHandler: (InboxCarouselViewModel) async -> Void {
+            switch self {
+            case .triage:
+                return { vm in await vm.assignCurrent() }
+            case .nextAction:
+                return { vm in await vm.convertToNextAction() }
+            }
+        }
     }
-    
+
     init(viewModel: InboxCarouselViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
     }
@@ -90,25 +109,17 @@ struct InboxCarouselView: View {
         }
         .sheet(isPresented: $showingMandatorySheet, onDismiss: handleSheetDismiss) {
             MandatoryFieldsSheet(
-                initialPriority: pendingMandatoryPriority,
-                initialTimeslot: pendingMandatoryTimeslot
+                initialPriority: viewModel.currentTask?.priority,
+                initialTimeslot: viewModel.currentTask?.timeslot
             ) { priority, timeslot in
                 showingMandatorySheet = false
-                let pendingID = pendingMandatoryTaskID
-                let action = pendingAction
-                resetMandatoryState()
-                guard let currentID = viewModel.currentTask?.id, currentID == pendingID else { return }
-                Task {
-                    switch action {
-                    case .triage:
-                        await viewModel.assignCurrent(priority: priority, timeslot: timeslot)
-                    case .nextAction:
-                        await viewModel.convertToNextAction(priority: priority, timeslot: timeslot)
-                    }
-                }
+                guard let action = pendingSwipeAction else { return }
+                let handler = action.completionHandler
+                pendingSwipeAction = nil
+                Task { await handler(viewModel, priority, timeslot) }
             } onCancel: {
                 showingMandatorySheet = false
-                resetMandatoryState()
+                pendingSwipeAction = nil
             }
         }
         .gesture(horizontalGesture)
@@ -263,9 +274,9 @@ struct InboxCarouselView: View {
                 guard abs(value.translation.width) > abs(value.translation.height) else { return }
                 let translation = value.translation.width
                 if translation > 120 {
-                    handleTriageSwipe()
+                    handleSwipe(.triage)
                 } else if translation < -120 {
-                    handleNextActionSwipe()
+                    handleSwipe(.nextAction)
                 }
             }
     }
@@ -280,33 +291,19 @@ struct InboxCarouselView: View {
     }
     
     // MARK: - Actions
-    
-    private func handleTriageSwipe() {
-        if let task = viewModel.currentTask,
-           task.priority == nil || task.timeslot == nil {
-            pendingMandatoryTaskID = task.id
-            pendingMandatoryPriority = task.priority
-            pendingMandatoryTimeslot = task.timeslot
-            pendingAction = .triage
+
+    private func handleSwipe(_ action: SwipeAction) {
+        guard let task = viewModel.currentTask else { return }
+
+        if task.priority == nil || task.timeslot == nil {
+            pendingSwipeAction = action
             showingMandatorySheet = true
         } else {
-            Task { await viewModel.assignCurrent() }
+            let handler = action.immediateHandler
+            Task { await handler(viewModel) }
         }
     }
 
-    private func handleNextActionSwipe() {
-        if let task = viewModel.currentTask,
-           task.priority == nil || task.timeslot == nil {
-            pendingMandatoryTaskID = task.id
-            pendingMandatoryPriority = task.priority
-            pendingMandatoryTimeslot = task.timeslot
-            pendingAction = .nextAction
-            showingMandatorySheet = true
-        } else {
-            Task { await viewModel.convertToNextAction() }
-        }
-    }
-    
     private func handleError(_ error: String?) {
         guard let error = error else {
             pendingErrorMessage = nil
@@ -334,13 +331,6 @@ struct InboxCarouselView: View {
                 pendingErrorMessage = nil
             }
         }
-    }
-    
-    private func resetMandatoryState() {
-        pendingMandatoryTaskID = nil
-        pendingMandatoryPriority = nil
-        pendingMandatoryTimeslot = nil
-        pendingAction = .triage
     }
 }
 
@@ -427,8 +417,8 @@ struct InboxCardView: View {
                     color: .orange
                 ) {
                     Button("未設定") { onSelectTimestamp(nil) }
-                    Button("今日") { onSelectTimestamp(todayInTokyo()) }
-                    Button("明日") { onSelectTimestamp(todayInTokyo().addingTimeInterval(86_400)) }
+                    Button("今日") { onSelectTimestamp(.todayInJST()) }
+                    Button("明日") { onSelectTimestamp(Date.todayInJST().addingTimeInterval(86_400)) }
                 }
             }
             
@@ -526,11 +516,5 @@ struct InboxCardView: View {
                 )
             }
         }
-    }
-    
-    private func todayInTokyo() -> Date {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .tokyo
-        return calendar.startOfDay(for: Date())
     }
 }

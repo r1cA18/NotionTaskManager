@@ -19,16 +19,7 @@ struct RootView: View {
                     loadingView
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.title3)
-                    }
-                }
-            }
+            .navigationBarHidden(true)
         }
         .task {
             await initializeServices()

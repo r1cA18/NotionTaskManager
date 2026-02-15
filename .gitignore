@@ -3,3 +3,4 @@ NotionTaskManager/.specstory/
 NotionTaskManager.xcodeproj/xcuserdata/
 *.xcuserstate
 .vscode
+.claude/settings.local.json

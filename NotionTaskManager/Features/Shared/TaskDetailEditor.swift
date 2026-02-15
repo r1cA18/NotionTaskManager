@@ -72,6 +72,7 @@ struct TaskDetailEditor: View {
                         ),
                         displayedComponents: .date
                     )
+                    .environment(\.timeZone, .tokyo)
 
                     if timestamp != nil {
                         Button("予定日をクリア", role: .destructive) {
@@ -89,6 +90,7 @@ struct TaskDetailEditor: View {
                         ),
                         displayedComponents: .date
                     )
+                    .environment(\.timeZone, .tokyo)
 
                     if deadline != nil {
                         Button("締め切りをクリア", role: .destructive) {

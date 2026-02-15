@@ -14,7 +14,7 @@ final class NetworkMonitor: ObservableObject {
     /// Detailed status message for UI display
     @Published private(set) var statusMessage: String = ""
 
-    private let monitor = NWPathMonitor()
+    private var monitor = NWPathMonitor()
     private let monitorQueue = DispatchQueue(label: "NetworkMonitor")
     private var isStarted = false
 
@@ -37,7 +37,8 @@ final class NetworkMonitor: ObservableObject {
         }
     }
 
-    init() {}
+    init() {
+    }
 
     deinit {
         // monitor.cancel() is thread-safe and can be called from deinit
@@ -77,6 +78,7 @@ final class NetworkMonitor: ObservableObject {
     func stop() {
         guard isStarted else { return }
         monitor.cancel()
+        monitor = NWPathMonitor()
         isStarted = false
     }
 

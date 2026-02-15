@@ -101,7 +101,7 @@ final class TaskSyncService: ObservableObject {
         
         let dayString = Self.dayFormatter.string(from: date)
         let scope = includeInboxAndOverdue ? "full (date + inbox + overdue)" : "date only"
-        log("[TaskSyncService] 🔍 Fetching tasks for date: \(dayString) [\(scope)]")
+        log("[TaskSyncService] Fetching tasks for date: \(dayString) [\(scope)]")
         
         let syncTask = Task { @MainActor in
             do {
@@ -172,8 +172,16 @@ final class TaskSyncService: ObservableObject {
                 syncProgress = .processing
                 
                 try repository.upsert(snapshots: snapshots)
-                let ids = Set(snapshots.map(\.notionID))
-                
+                var ids = Set(snapshots.map(\.notionID))
+
+                // Protect tasks with pending/failed sync operations from pruning
+                for taskID in self.operationQueue.pendingOperations.keys {
+                    ids.insert(taskID)
+                }
+                for taskID in self.operationQueue.failedOperations.keys {
+                    ids.insert(taskID)
+                }
+
                 // Prune strategy differs based on scope
                 if includeInboxAndOverdue {
                     try repository.pruneTasks(
@@ -200,9 +208,9 @@ final class TaskSyncService: ObservableObject {
                 lastError = nil
                 syncProgress = .completed
             } catch is CancellationError {
-                log("[NotionSync] 🔄 Refresh cancelled (view disposed)")
+                log("[NotionSync] Refresh cancelled (view disposed)")
             } catch let error as URLError where error.code == .cancelled {
-                log("[NotionSync] 🔄 URLSession cancelled request")
+                log("[NotionSync] URLSession cancelled request")
             } catch let error as NotionClientError {
                 lastError = error.localizedDescription
                 syncProgress = .failed(error.localizedDescription)
@@ -275,7 +283,7 @@ final class TaskSyncService: ObservableObject {
             do {
                 try repository.overwrite(taskID: taskID, with: snapshot)
             } catch {
-                log("[NotionSync] ❌ Failed to rollback task \(taskID): \(error)")
+                log("[NotionSync] Failed to rollback task \(taskID): \(error)")
             }
         }
         
@@ -337,7 +345,7 @@ final class TaskSyncService: ObservableObject {
             do {
                 try repository.overwrite(taskID: taskID, with: snapshot)
             } catch {
-                log("[NotionSync] ❌ Failed to rollback task \(taskID): \(error)")
+                log("[NotionSync] Failed to rollback task \(taskID): \(error)")
             }
         }
         
@@ -396,7 +404,7 @@ final class TaskSyncService: ObservableObject {
             do {
                 try repository.overwrite(taskID: taskID, with: snapshot)
             } catch {
-                log("[NotionSync] ❌ Failed to rollback task \(taskID): \(error)")
+                log("[NotionSync] Failed to rollback task \(taskID): \(error)")
             }
         }
         
@@ -453,7 +461,7 @@ final class TaskSyncService: ObservableObject {
             do {
                 try repository.overwrite(taskID: taskID, with: snapshot)
             } catch {
-                log("[NotionSync] ❌ Failed to rollback task \(taskID): \(error)")
+                log("[NotionSync] Failed to rollback task \(taskID): \(error)")
             }
         }
         
@@ -521,7 +529,7 @@ final class TaskSyncService: ObservableObject {
             do {
                 try repository.overwrite(taskID: taskID, with: snapshot)
             } catch {
-                log("[NotionSync] ❌ Failed to rollback task \(taskID): \(error)")
+                log("[NotionSync] Failed to rollback task \(taskID): \(error)")
             }
         }
         
@@ -576,7 +584,7 @@ final class TaskSyncService: ObservableObject {
             do {
                 try repository.overwrite(taskID: taskID, with: snapshot)
             } catch {
-                log("[NotionSync] ❌ Failed to rollback task \(taskID): \(error)")
+                log("[NotionSync] Failed to rollback task \(taskID): \(error)")
             }
         }
         

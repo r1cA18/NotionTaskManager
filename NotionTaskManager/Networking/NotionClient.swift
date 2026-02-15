@@ -143,12 +143,12 @@ final class NotionClient: NotionClientProtocol {
       )
 
       #if DEBUG
-        print("[NotionClient] 📄 Page \(pageCount): Found \(response.results.count) blocks")
+        print("[NotionClient] Page \(pageCount): Found \(response.results.count) blocks")
         for (index, block) in response.results.prefix(5).enumerated() {
           print(
             "[NotionClient]   Block \(index): type=\(block.type), hasChildren=\(block.hasChildren)")
           if block.type == "bookmark", let url = block.bookmark?.url {
-            print("[NotionClient]   ✅ Bookmark found: \(url.absoluteString)")
+            print("[NotionClient]   Bookmark found: \(url.absoluteString)")
           }
         }
       #endif

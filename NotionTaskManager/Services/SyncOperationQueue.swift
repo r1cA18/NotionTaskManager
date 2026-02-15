@@ -195,11 +195,12 @@ final class SyncOperationQueue: ObservableObject {
         // Check network status
         if let monitor = networkMonitor, !monitor.isConnected {
             #if DEBUG
-            print("[SyncQueue] ⏸️ Network unavailable, pausing operation for \(taskID)")
+            print("[SyncQueue] Network unavailable, pausing operation for \(taskID)")
             #endif
             operation.status = .pending
             pendingOperations[taskID] = operation
             operationStatuses[taskID] = .pending
+            operationTasks.removeValue(forKey: taskID)
             return
         }
 
@@ -212,74 +213,71 @@ final class SyncOperationQueue: ObservableObject {
             processingTaskIDs.remove(taskID)
         }
 
-        do {
-            try await operation.execute()
+        while true {
+            do {
+                try await operation.execute()
 
-            // Success
-            pendingOperations.removeValue(forKey: taskID)
-            operationTasks.removeValue(forKey: taskID)
-            operationStatuses[taskID] = .completed
-            updateCounts()
-
-            // Notify completion
-            lastCompletedOperation = (taskID, operation.operationType)
-
-            // Clear completed status after delay
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 3_000_000_000)  // 3 seconds
-                if self.operationStatuses[taskID] == .completed {
-                    self.operationStatuses.removeValue(forKey: taskID)
-                }
-            }
-
-            #if DEBUG
-            print("[SyncQueue] ✅ Operation \(operation.operationType.rawValue) completed for task \(taskID)")
-            #endif
-        } catch {
-            if Task.isCancelled { return }
-
-            operation.retryCount += 1
-            operation.lastError = error
-
-            let syncError = mapToSyncError(error)
-
-            if operation.retryCount < operation.maxRetries && syncError.shouldAutoRetry {
-                operation.status = .retrying(attempt: operation.retryCount, maxAttempts: operation.maxRetries)
-                pendingOperations[taskID] = operation
-                operationStatuses[taskID] = operation.status
-
-                #if DEBUG
-                print("[SyncQueue] ⚠️ Retry \(operation.retryCount)/\(operation.maxRetries) for \(taskID): \(error)")
-                #endif
-
-                // Improved exponential backoff: 1, 2, 4, 8, 16 seconds
-                let baseDelay = syncError.retryDelay
-                let delay = pow(2.0, Double(operation.retryCount - 1)) * baseDelay
-                let cappedDelay = min(delay, 30.0)  // Cap at 30 seconds
-
-                try? await Task.sleep(nanoseconds: UInt64(cappedDelay * 1_000_000_000))
-
-                if !Task.isCancelled {
-                    await processOperation(taskID: taskID)
-                }
-            } else {
-                #if DEBUG
-                print("[SyncQueue] ❌ Operation failed after \(operation.retryCount) retries for \(taskID): \(error)")
-                #endif
-
-                // Move to failed operations
-                operation.status = .failed(syncError)
+                // Success
                 pendingOperations.removeValue(forKey: taskID)
                 operationTasks.removeValue(forKey: taskID)
-                failedOperations[taskID] = operation
-                operationStatuses[taskID] = .failed(syncError)
+                operationStatuses[taskID] = .completed
                 updateCounts()
 
-                // Notify failure
-                lastFailedOperation = (taskID, syncError)
+                lastCompletedOperation = (taskID, operation.operationType)
 
-                // Execute rollback
-                await operation.rollback()
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    if self.operationStatuses[taskID] == .completed {
+                        self.operationStatuses.removeValue(forKey: taskID)
+                    }
+                }
+
+                #if DEBUG
+                print("[SyncQueue] Operation \(operation.operationType.rawValue) completed for task \(taskID)")
+                #endif
+                return
+            } catch {
+                if Task.isCancelled { return }
+
+                operation.retryCount += 1
+                operation.lastError = error
+
+                let syncError = mapToSyncError(error)
+
+                if operation.retryCount < operation.maxRetries && syncError.shouldAutoRetry {
+                    operation.status = .retrying(attempt: operation.retryCount, maxAttempts: operation.maxRetries)
+                    pendingOperations[taskID] = operation
+                    operationStatuses[taskID] = operation.status
+
+                    #if DEBUG
+                    print("[SyncQueue] Retry \(operation.retryCount)/\(operation.maxRetries) for \(taskID): \(error)")
+                    #endif
+
+                    let baseDelay = syncError.retryDelay
+                    let delay = pow(2.0, Double(operation.retryCount - 1)) * baseDelay
+                    let cappedDelay = min(delay, 30.0)
+
+                    try? await Task.sleep(nanoseconds: UInt64(cappedDelay * 1_000_000_000))
+
+                    if Task.isCancelled { return }
+                    continue
+                } else {
+                    #if DEBUG
+                    print("[SyncQueue] Operation failed after \(operation.retryCount) retries for \(taskID): \(error)")
+                    #endif
+
+                    operation.status = .failed(syncError)
+                    pendingOperations.removeValue(forKey: taskID)
+                    operationTasks.removeValue(forKey: taskID)
+                    failedOperations[taskID] = operation
+                    operationStatuses[taskID] = .failed(syncError)
+                    updateCounts()
+
+                    lastFailedOperation = (taskID, syncError)
+
+                    await operation.rollback()
+                    return
+                }
             }
         }
     }

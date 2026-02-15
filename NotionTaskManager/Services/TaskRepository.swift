@@ -40,8 +40,8 @@ final class TaskRepository: TaskRepositoryProtocol, ObservableObject {
     let boundaries = DateBoundaries(target: date)
 
     #if DEBUG
-      debugPrint("[TaskRepository] 📊 Total tasks in DB: \(tasks.count)")
-      debugPrint("[TaskRepository] 📅 Today range: \(boundaries.startOfDay) ~ \(boundaries.startOfTomorrow)")
+      debugPrint("[TaskRepository] Total tasks in DB: \(tasks.count)")
+      debugPrint("[TaskRepository] Today range: \(boundaries.startOfDay) ~ \(boundaries.startOfTomorrow)")
     #endif
 
     let filtered = tasks.filter { task in

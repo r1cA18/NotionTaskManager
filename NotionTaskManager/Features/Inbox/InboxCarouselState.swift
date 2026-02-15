@@ -167,11 +167,6 @@ final class InboxCarouselViewModel: ObservableObject {
       if syncService.lastError == nil {
         lastError = nil
       }
-      let ids = Set(fetched.map { $0.id })
-      try repository.pruneTasks(
-        matching: { entity in
-          entity.isInboxCandidate
-        }, keepingIDs: ids)
     } catch {
       lastError = error.localizedDescription
     }

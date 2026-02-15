@@ -4,6 +4,7 @@ import SwiftUI
 struct TodayDashboardView: View {
     private let repository: TaskRepositoryProtocol
     private let syncService: TaskSyncService?
+    @EnvironmentObject private var dependencies: AppDependencies
     @StateObject private var viewModel: TodayDashboardViewModel
     @State private var targetDate: Date = Date()
     @State private var showingInbox = false
@@ -114,7 +115,25 @@ struct TodayDashboardView: View {
                     .accessibilityLabel("Refresh tasks")
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                if let syncService {
+                    SyncStatusIndicator(
+                        syncService: syncService,
+                        networkMonitor: dependencies.networkMonitor
+                    )
+                }
+            }
         }
+        .safeAreaInset(edge: .top) {
+            if let syncService {
+                SyncStatusBanner(
+                    syncService: syncService,
+                    networkMonitor: dependencies.networkMonitor
+                )
+                .padding(.top, 8)
+            }
+        }
+        .toastContainer(dependencies.toastManager)
         .onReceive(viewModel.$lastError) { error in
             DispatchQueue.main.async {
                 syncErrorMessage = error ?? ""

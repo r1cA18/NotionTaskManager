@@ -13,8 +13,11 @@ struct DateNavigationView: View {
     @State private var syncErrorMessage = ""
     @State private var activeTab: TaskTab = .todo
     @State private var editingTask: TaskDisplayModel?
-    
+    @State private var isDateSelectorVisible = false
+
     @Namespace private var animation
+
+    private let dragThreshold: CGFloat = 30
     
     init(repository: TaskRepositoryProtocol, syncService: TaskSyncService? = nil) {
         self.repository = repository
@@ -32,29 +35,32 @@ struct DateNavigationView: View {
             // Background gradient
             backgroundGradient
                 .ignoresSafeArea()
-            
+
             // Main content
             VStack(spacing: 0) {
                 // Compact header with date
                 headerSection
-                
-                // Date selector
-                dateSelector
-                
+
+                // Date selector (revealed on drag)
+                if isDateSelectorVisible {
+                    dateSelector
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 // Task content area
                 taskContentArea
             }
-            
-            // Bottom floating elements
-            VStack(spacing: 0) {
-                // In-progress tasks
-                if !viewModel.inProgressTasks.isEmpty {
+
+            // Floating action icons (right side)
+            floatingActionIcons
+
+            // In-progress tasks (bottom)
+            if !viewModel.inProgressTasks.isEmpty {
+                VStack {
+                    Spacer()
                     inProgressSection
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                
-                // Bottom action bar
-                bottomActionBar
             }
         }
         .task {
@@ -121,9 +127,9 @@ struct DateNavigationView: View {
     }
     
     // MARK: - Header Section
-    
+
     private var headerSection: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: 12) {
             // Date button
             Button {
                 showingCalendar = true
@@ -133,7 +139,7 @@ struct DateNavigationView: View {
                     Text(dayNumber)
                         .font(.system(size: 36, weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(weekdayString)
                             .font(.system(size: 13, weight: .semibold))
@@ -142,16 +148,16 @@ struct DateNavigationView: View {
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.tertiary)
                     }
-                    
+
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.tertiary)
                 }
             }
             .buttonStyle(.plain)
-            
+
             Spacer()
-            
+
             // Today button (when not on today)
             if !isToday {
                 Button {
@@ -160,8 +166,8 @@ struct DateNavigationView: View {
                     Text("今日")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
                         .background(
                             Capsule()
                                 .fill(Color.accentColor)
@@ -169,41 +175,36 @@ struct DateNavigationView: View {
                 }
                 .transition(.scale.combined(with: .opacity))
             }
-            
-            // Refresh/Settings
-            HStack(spacing: 4) {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                } else {
-                    Button {
-                        Task { await viewModel.refreshTasks() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 40, height: 40)
-                    }
-                }
-                
-                NavigationLink {
-                    SettingsView()
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 40, height: 40)
-                }
+
+            // Loading indicator
+            if viewModel.isLoading {
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .frame(width: 40, height: 40)
+            }
+
+            // Settings button
+            NavigationLink {
+                SettingsView()
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Circle()
+                            .fill(Color(.systemFill).opacity(0.6))
+                    )
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 8)
+        .padding(.top, 12)
         .padding(.bottom, 12)
         .animation(.spring(response: 0.3), value: isToday)
     }
     
     // MARK: - Date Selector
-    
+
     private var dateSelector: some View {
         DateSelectorView(
             selectedDate: $viewModel.selectedDate,
@@ -211,18 +212,22 @@ struct DateNavigationView: View {
                 Task { await viewModel.selectDate(date) }
             }
         )
-        .padding(.bottom, 8)
+        .padding(.bottom, 4)
     }
     
     // MARK: - Task Content Area
-    
+
     private var taskContentArea: some View {
         VStack(spacing: 0) {
+            // Drag handle
+            dragHandle
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+
             // Tab picker
             tabPicker
                 .padding(.horizontal, 20)
-                .padding(.top, 16)
-            
+
             // Task list
             TabView(selection: $activeTab) {
                 todoPage.tag(TaskTab.todo)
@@ -236,6 +241,36 @@ struct DateNavigationView: View {
                 .shadow(color: Color.black.opacity(0.08), radius: 20, x: 0, y: -8)
         )
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .gesture(dragGesture)
+    }
+
+    // MARK: - Drag Handle
+
+    private var dragHandle: some View {
+        RoundedRectangle(cornerRadius: 2.5)
+            .fill(Color(.tertiaryLabel))
+            .frame(width: 36, height: 5)
+            .frame(maxWidth: .infinity)
+            .frame(height: 24)
+            .contentShape(Rectangle())
+    }
+
+    private var dragGesture: some Gesture {
+        DragGesture(minimumDistance: 10)
+            .onEnded { value in
+                let translation = value.translation.height
+                if !isDateSelectorVisible && translation > dragThreshold {
+                    // Swipe down to show
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                        isDateSelectorVisible = true
+                    }
+                } else if isDateSelectorVisible && translation < -dragThreshold {
+                    // Swipe up to hide
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                        isDateSelectorVisible = false
+                    }
+                }
+            }
     }
     
     private var tabPicker: some View {
@@ -328,7 +363,7 @@ struct DateNavigationView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                
+
                 content()
             }
             .padding(.horizontal, 20)
@@ -410,7 +445,7 @@ struct DateNavigationView: View {
     }
     
     // MARK: - In Progress Section
-    
+
     private var inProgressSection: some View {
         VStack(spacing: 10) {
             ForEach(viewModel.inProgressTasks) { model in
@@ -428,18 +463,31 @@ struct DateNavigationView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 12)
+        .padding(.bottom, 32)
     }
-    
-    // MARK: - Bottom Action Bar
-    
-    private var bottomActionBar: some View {
-        HStack(spacing: 16) {
-            // Overdue button
+
+    // MARK: - Floating Action Icons
+
+    private var floatingActionIcons: some View {
+        VStack(alignment: .trailing, spacing: 12) {
+            Spacer()
+
+            // Inbox icon
+            if viewModel.hasInboxTasks {
+                floatingIconButton(
+                    icon: "tray.full.fill",
+                    badge: viewModel.inboxTasks.count,
+                    tint: Color.accentColor
+                ) {
+                    showingInbox = true
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+
+            // Overdue icon
             if viewModel.hasOverdueTasks {
-                actionButton(
-                    icon: "clock.badge.exclamationmark",
-                    label: "期限切れ",
+                floatingIconButton(
+                    icon: "clock.badge.exclamationmark.fill",
                     badge: viewModel.overdueTasks.count,
                     tint: .red
                 ) {
@@ -447,87 +495,51 @@ struct DateNavigationView: View {
                 }
                 .transition(.scale.combined(with: .opacity))
             }
-            
-            Spacer()
-            
-            // Inbox button
-            if viewModel.hasInboxTasks {
-                actionButton(
-                    icon: "tray.full",
-                    label: "Inbox",
-                    badge: viewModel.inboxTasks.count,
-                    tint: .accentColor
-                ) {
-                    showingInbox = true
-                }
-                .transition(.scale.combined(with: .opacity))
-            }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .shadow(color: Color.black.opacity(0.05), radius: 20, x: 0, y: -10)
-        )
+        .padding(.trailing, 16)
+        .padding(.bottom, viewModel.inProgressTasks.isEmpty ? 32 : 120)
+        .frame(maxWidth: .infinity, alignment: .trailing)
         .animation(.spring(response: 0.4), value: viewModel.hasInboxTasks)
         .animation(.spring(response: 0.4), value: viewModel.hasOverdueTasks)
     }
-    
-    private func actionButton(
+
+    private func floatingIconButton(
         icon: String,
-        label: String,
         badge: Int,
         tint: Color,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: icon)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [tint, tint.opacity(0.7)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 52, height: 52)
+                    .background(
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [tint, tint.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
                                 )
-                        )
-                    
-                    if badge > 0 {
-                        Text("\(badge)")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule()
-                                    .fill(Color.red)
                             )
-                            .offset(x: 6, y: -6)
-                    }
+                            .shadow(color: tint.opacity(0.4), radius: 8, x: 0, y: 4)
+                    )
+
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color.red)
+                        )
+                        .offset(x: 4, y: -4)
                 }
-                
-                Text(label)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.primary)
             }
-            .padding(.trailing, 16)
-            .padding(.leading, 4)
-            .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-            )
         }
         .buttonStyle(.plain)
     }

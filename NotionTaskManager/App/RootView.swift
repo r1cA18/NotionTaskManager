@@ -19,16 +19,7 @@ struct RootView: View {
                     loadingView
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.title3)
-                    }
-                }
-            }
+            .navigationBarHidden(true)
         }
         .task {
             await initializeServices()
@@ -40,7 +31,7 @@ struct RootView: View {
             // App icon placeholder
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.accent)
+                .foregroundStyle(Color.accentColor)
             
             VStack(spacing: 8) {
                 Text("Notion Task Manager")

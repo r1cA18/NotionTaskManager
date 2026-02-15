@@ -86,59 +86,59 @@ final class InboxCarouselViewModel: ObservableObject {
     await applyEdits(changes)
   }
 
+  // MARK: - Triage Actions
+
   func assignCurrent() async {
-    guard let task = currentTask else { return }
-
-    let today = Self.todayInTokyo()
-    var needsTimestampUpdate = false
-    if let timestamp = task.timestamp {
-      needsTimestampUpdate = timestamp < today
-    } else {
-      needsTimestampUpdate = true
-    }
-    if needsTimestampUpdate {
-      var changes = TaskEditChanges()
-      changes.timestamp = .set(today)
-      await applyEdits(changes)
-      if lastError != nil { return }
-    }
-
-    await convertToNextAction()
+    guard await ensureTimestampIsToday() else { return }
+    await performConvertToNextAction()
   }
 
   func assignCurrent(priority: TaskPriority, timeslot: TaskTimeslot) async {
+    await applyMandatoryFields(priority: priority, timeslot: timeslot)
+    guard lastError == nil else { return }
+    await performConvertToNextAction()
+  }
+
+  // MARK: - NextAction Conversion
+
+  func convertToNextAction() async {
+    guard await ensureTimestampIsToday() else { return }
+    await performConvertToNextAction()
+  }
+
+  func convertToNextAction(priority: TaskPriority, timeslot: TaskTimeslot) async {
+    await applyMandatoryFields(priority: priority, timeslot: timeslot)
+    guard lastError == nil else { return }
+    await performConvertToNextAction()
+  }
+
+  // MARK: - Private Helpers
+
+  private func applyMandatoryFields(priority: TaskPriority, timeslot: TaskTimeslot) async {
     var changes = TaskEditChanges()
     changes.priority = .set(priority)
     changes.timeslot = .set(timeslot)
-    let today = Self.todayInTokyo()
-    if let timestamp = currentTask?.timestamp {
-      if timestamp < today {
-        changes.timestamp = .set(today)
-      }
-    } else {
-      changes.timestamp = .set(today)
+    if needsTimestampUpdate() {
+      changes.timestamp = .set(.todayInJST())
     }
     await applyEdits(changes)
-    if lastError == nil {
-      await convertToNextAction()
-    }
   }
 
-  func convertToNextAction() async {
+  private func ensureTimestampIsToday() async -> Bool {
+    guard needsTimestampUpdate() else { return true }
+    var changes = TaskEditChanges()
+    changes.timestamp = .set(.todayInJST())
+    await applyEdits(changes)
+    return lastError == nil
+  }
+
+  private func needsTimestampUpdate() -> Bool {
+    guard let timestamp = currentTask?.timestamp else { return true }
+    return timestamp < .todayInJST()
+  }
+
+  private func performConvertToNextAction() async {
     guard let task = currentTask else { return }
-    let today = Self.todayInTokyo()
-    var needsTimestampUpdate = false
-    if let timestamp = task.timestamp {
-      needsTimestampUpdate = timestamp < today
-    } else {
-      needsTimestampUpdate = true
-    }
-    if needsTimestampUpdate {
-      var changes = TaskEditChanges()
-      changes.timestamp = .set(today)
-      await applyEdits(changes)
-      if lastError != nil { return }
-    }
     await syncService.convertToNextAction(taskID: task.id)
     reloadQueueFromCache()
   }
@@ -158,12 +158,6 @@ final class InboxCarouselViewModel: ObservableObject {
   private func popCurrent() {
     guard !queue.isEmpty else { return }
     queue = Array(queue.dropFirst())
-  }
-
-  private static func todayInTokyo() -> Date {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = .tokyo
-    return calendar.startOfDay(for: Date())
   }
 
   private func reloadQueueFromCache() {
